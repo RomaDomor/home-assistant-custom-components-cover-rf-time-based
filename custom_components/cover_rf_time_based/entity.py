@@ -60,6 +60,7 @@ class CoverTimeBased(CoverEntity, RestoreEntity):
         self._target_tilt_position = 0
         self._stopping = False
         self._processing_known_position = False
+        self._processing_known_action = False
         self._cover_entity_id = wrapper.cover_entity_id
         self._availability_template = config.availability_template
         self._open_script_entity_id = scripts.open_script
@@ -471,6 +472,7 @@ class CoverTimeBased(CoverEntity, RestoreEntity):
             self.async_write_ha_state()
             return
         self._assume_uncertain_position = not self._always_confident
+        self._processing_known_action = True
         if action == "open":
             self.tc.start_travel_up(); self._target_position = 100
         elif action == "close":
@@ -495,8 +497,7 @@ class CoverTimeBased(CoverEntity, RestoreEntity):
         await fn()
 
     async def auto_stop_if_necessary(self):
-        self._processing_known_position = False
-        if self._stopping:
+        if self._stopping or self._processing_known_position or self._processing_known_action:
             return
         main_done = self.tc.position_reached()
         tilt_done = self._has_tilt and self.tilt_tc.position_reached()
@@ -535,6 +536,7 @@ class CoverTimeBased(CoverEntity, RestoreEntity):
     async def _handle_command(self, command, *args, **kwargs):
         self._assume_uncertain_position = not self._always_confident
         self._processing_known_position = False
+        self._processing_known_action = False
         entity_id = self._resolve_script_entity(command)
 
         # Determine if this is a tilt command
